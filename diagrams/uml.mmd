@@ -8,31 +8,6 @@ classDiagram
         HIGH
     }
 
-    class Owner {
-        +str name
-        +int available_minutes
-        +dict preferences
-        +list~Pet~ pets
-        +change_name(new_name str) None
-        +update_availability(available_minutes int) None
-        +update_preferences(preferences dict) None
-        +add_pet(pet Pet) None
-    }
-
-    class Pet {
-        +str name
-        +str breed
-        +list~str~ medications
-        +list~str~ allergies
-        +str preferred_food
-        +list~str~ appointments
-        +change_name(new_name str) None
-        +update_medication(medication str) None
-        +update_appointment(appointment str) None
-        +update_allergies(allergy str) None
-        +update_food_preference(food str) None
-    }
-
     class Task {
         +str name
         +int duration
@@ -46,19 +21,43 @@ classDiagram
         +update_status(status str) None
     }
 
-    class Schedule {
-        +Owner owner
-        +list~Pet~ pets
+    class Pet {
+        +str name
+        +str breed
+        +list~str~ medications
+        +list~str~ allergies
+        +str preferred_food
+        +list~str~ appointments
         +list~Task~ tasks
-        +assign_owner(owner Owner) None
-        +add_pet(pet Pet) None
+        +change_name(new_name str) None
+        +update_medication(medication str) None
+        +update_appointment(appointment str) None
+        +update_allergies(allergy str) None
+        +update_food_preference(food str) None
         +add_task(task Task) None
-        +generate_plan() list~Task~
     }
 
-    Owner "1" --> "*" Pet : owns
-    Schedule "*" --> "1" Owner : plans for
-    Schedule "*" --> "*" Pet : cares for
-    Schedule "1" o-- "*" Task : contains
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +change_name(new_name str) None
+        +update_availability(available_minutes int) None
+        +update_preferences(preferences dict) None
+        +add_pet(pet Pet) None
+        +all_tasks() list~Task~
+    }
+
+    class Scheduler {
+        +Owner owner
+        +time day_start
+        +assign_owner(owner Owner) None
+        +generate_plan(available_minutes int) list~Task~
+    }
+
+    Owner "1" o-- "*" Pet : owns
+    Pet "1" o-- "*" Task : has
     Task "*" --> "1" Pet : belongs to
     Task --> Priority : uses
+    Scheduler "*" --> "1" Owner : plans for
