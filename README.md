@@ -63,17 +63,49 @@ Today's Schedule for Sam
 
 ```bash
 # Run the full test suite:
-pytest
+python -m pytest
+
+# Run verbosely (one line per test):
+python -m pytest -v
 
 # Run with coverage:
-pytest --cov
+python -m pytest --cov
 ```
 
-Sample test output:
+Test output:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0
+collected 16 items
+
+tests\test_pawpal.py ................                                    [100%]
+
+============================= 16 passed in 0.03s ==============================
 ```
+
+### What the tests cover
+
+The suite in `tests/test_pawpal.py` exercises the scheduler's trickiest behaviors:
+
+- **Sorting & plan ordering** — deadline tasks sort ahead of deadline-less ones
+  (24:00 sentinel), ties fall back to insertion order, oversized tasks are
+  skipped, and the greedy `break` in `generate_plan` skips a later task that
+  would otherwise have fit (the documented priority-first tradeoff).
+- **Recurring tasks** — completing a daily/weekly task spawns exactly one next
+  occurrence with the correct due date (including across a month boundary),
+  non-recurring tasks spawn nothing, and the domain `complete()` has no
+  re-completion guard (spawns on every call — the UI guards instead).
+- **Conflict detection** — the sort-then-sweep flags chained overlaps against
+  the furthest-reaching task, treats back-to-back tasks as non-conflicting
+  (half-open `[start, end)` intervals), and ignores unscheduled tasks.
+- **Boundary cases** — a zero-minute budget skips everything, and a scheduler
+  with no owner raises `ValueError` (or returns empty for conflict detection).
+
+### Confidence level
+
+Based on the test suite I give a confidence level of 4/5. In order to achieve full confidence I would prefer to add dozens more tests handling as many other methods and scenarios as possible.
+
 
 ## 📐 Smarter Scheduling
 
