@@ -10,7 +10,7 @@
 User should be able to add a pet with name, breed, hair, allergy, medication, etc attributes. User should be able to schedule specific tasks (walking, bathing, medication, vet visits) within time constraints. User should be able to have assistant plan tasks and provide a daily list, preferbly with justification.
 
 Classes: Pet (attributes: name, breed, medications, allergies, preferred food, upcoming appointemnts) (methods: change name, update medication, update appointment, update allergies, update food preference)
-Owner (attributes: name, availability, preferences) (methods: change name, update availability, update preferences)
+Owner (attributes: name, availability, preferences, pets) (methods: change name, update availability, update preferences, update pets)
 Task (attributes: task name, time allocated, deadline) (methods: add task, change time, change deadline)
 Schedule (attributes: owner, pet, task, time, status) (methods: assign owner, assign pet, assign task, assign time, update status)
 
