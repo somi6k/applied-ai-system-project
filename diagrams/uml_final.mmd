@@ -1,0 +1,81 @@
+classDiagram
+    %% PawPal+ FINAL class diagram — matches the implementation in pawpal_system.py.
+
+    class Priority {
+        <<enumeration>>
+        LOW
+        MEDIUM
+        HIGH
+    }
+
+    class Recurrence {
+        <<enumeration>>
+        NONE
+        DAILY
+        WEEKLY
+        +step() timedelta
+    }
+
+    class Task {
+        +str name
+        +int duration
+        +Priority priority
+        +time deadline
+        +Recurrence recurrence
+        +date due_date
+        +time start
+        +str status
+        +Pet pet
+        +change_time(duration int) None
+        +change_deadline(deadline time) None
+        +update_status(status str) None
+        +complete(today date) Task
+    }
+
+    class Pet {
+        +str name
+        +str breed
+        +list~str~ medications
+        +list~str~ allergies
+        +str preferred_food
+        +list~str~ appointments
+        +list~Task~ tasks
+        +change_name(new_name str) None
+        +update_medication(medication str) None
+        +update_appointment(appointment str) None
+        +update_allergies(allergy str) None
+        +update_food_preference(food str) None
+        +add_task(task Task) None
+        +is_complete() bool
+    }
+
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +change_name(new_name str) None
+        +update_availability(available_minutes int) None
+        +update_preferences(preferences dict) None
+        +add_pet(pet Pet) None
+        +all_tasks() list~Task~
+        +filter_pets(name str, completed bool) list~Pet~
+    }
+
+    class Scheduler {
+        +Owner owner
+        +time day_start
+        +assign_owner(owner Owner) None
+        +sort_by_time() list~Task~
+        +generate_plan(available_minutes int) list~Task~
+        +detect_conflicts(tasks list~Task~) list
+    }
+
+    Owner "1" o-- "*" Pet : owns
+    Pet "1" o-- "*" Task : has
+    Task "*" --> "1" Pet : belongs to
+    Task --> Priority : uses
+    Task --> Recurrence : uses
+    Task ..> Task : spawns next occurrence
+    Owner ..> Pet : filters by state
+    Scheduler "*" --> "1" Owner : plans for

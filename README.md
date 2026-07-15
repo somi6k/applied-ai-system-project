@@ -107,6 +107,36 @@ The suite in `tests/test_pawpal.py` exercises the scheduler's trickiest behavior
 Based on the test suite I give a confidence level of 4/5. In order to achieve full confidence I would prefer to add dozens more tests handling as many other methods and scenarios as possible.
 
 
+## ✨ Features
+
+The scheduling logic lives in `pawpal_system.py`; the `Scheduler` class reads
+across the owner's pets and their tasks to produce a daily plan.
+
+- **Sorting.** `Scheduler.sort_by_time()` returns all of the owner's tasks
+  ordered chronologically by deadline (earliest first); tasks without a
+  deadline sort to the end via a 24:00 sentinel, and the pets' own task lists
+  are left untouched. When building the actual plan, `generate_plan()` instead
+  sorts by a three-part key — **priority (high first) → earliest deadline →
+  shortest duration** — via `Scheduler._sort_key`.
+- **Filtering.** Two kinds. `generate_plan()` filters by the owner's time
+  budget: it walks the priority-sorted tasks, placing them back-to-back from
+  `day_start` (08:00) until a task no longer fits `available_minutes`, then
+  stops and marks the remaining tasks `"skipped"` (a deliberate strict-priority
+  greedy tradeoff — it stops at the first task that doesn't fit rather than
+  squeezing in smaller lower-priority ones). Separately, `Owner.filter_pets()`
+  filters the pet list by name (case-insensitive substring) and/or completion
+  state (via `Pet.is_complete()`), combined with AND.
+- **Conflict detection.** `Scheduler.detect_conflicts()` flags tasks whose
+  scheduled times overlap. It looks only at tasks that have a `start`, sorts
+  them by start time, and sweeps left-to-right tracking the furthest end seen
+  so far — any task beginning before that end overlaps an earlier one. This is
+  O(n log n) rather than an O(n²) all-pairs check, treats intervals as
+  half-open `[start, start + duration)` (so back-to-back tasks don't conflict),
+  and warns (prints + returns the pairs) instead of crashing.
+- **Recurring tasks.** Completing a task with `Task.complete()` marks it done
+  and, for a daily/weekly `Recurrence`, auto-creates the next occurrence on the
+  same pet (daily = `today + 1 day`, weekly = `today + 1 week`).
+
 ## 📐 Smarter Scheduling
 
 The scheduling logic lives in `pawpal_system.py`. Each algorithm below has its
@@ -121,12 +151,78 @@ own method with a docstring describing its strategy.
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### What you can do
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+- Set the **owner's** name and daily time budget (available minutes).
+- **Add multiple pets** (name + species); a caption tracks each pet's task count.
+- **Search/filter pets** by name, and see which pets are fully done.
+- **Add tasks** to a chosen pet with a title, duration, priority, an optional
+  deadline, and a recurrence (none/daily/weekly).
+- **Mark tasks done** individually or all at once; completing a recurring task
+  spawns its next occurrence.
+- **Preview** all tasks sorted by deadline before scheduling.
+- **Generate today's schedule**, then see start times, tasks filtered out for
+  lack of time, and any conflict warnings.
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+### Example workflow
+
+set owner + available minutes -> add a pet -> select the pet and add a task
+(duration + priority, optional deadline) -> preview tasks sorted by time ->
+click **Generate schedule** -> view today's plan (and any skipped/conflicting
+tasks).
+
+### Key Scheduler behaviors shown
+
+- **Sorting** — tasks are ordered by deadline for the "sorted by time" view; the
+  plan itself orders by priority → deadline → duration.
+- **Filtering** — tasks that don't fit the time budget are dropped from the plan
+  and reported as skipped / "Filtered out (not enough time)".
+- **Conflict warnings** — overlapping start times are flagged (e.g. the CLI's
+  `WARNING: schedule conflict ... overlap at 09:30`) instead of crashing.
+- **Recurring tasks** — completing a daily/weekly task auto-creates its next
+  occurrence with the correct due date.
+
+### Sample CLI output (`python main.py`)
+
+```
+Tasks as added (out of order):
+----------------------------------------
+  deadline --:--  Enrichment play (20 min) [priority: low] - Biscuit
+  deadline 09:00  Morning walk (30 min) [priority: high] - Biscuit
+  deadline --:--  Grooming (25 min) [priority: medium] - Biscuit
+  deadline 08:30  Breakfast (10 min) [priority: high] - Biscuit
+  deadline --:--  Short walk (20 min) [priority: medium] - Max
+  deadline 09:00  Feeding (10 min) [priority: high] - Max
+  deadline 08:15  Medication (5 min) [priority: high] - Max
+
+Sorted by time (earliest deadline first):
+----------------------------------------
+  deadline 08:15  Medication (5 min) [priority: high] - Max
+  deadline 08:30  Breakfast (10 min) [priority: high] - Biscuit
+  deadline 09:00  Morning walk (30 min) [priority: high] - Biscuit
+  deadline 09:00  Feeding (10 min) [priority: high] - Max
+  deadline --:--  Enrichment play (20 min) [priority: low] - Biscuit
+  deadline --:--  Grooming (25 min) [priority: medium] - Biscuit
+  deadline --:--  Short walk (20 min) [priority: medium] - Max
+
+Today's Schedule for Sam
+(available time: 120 min)
+----------------------------------------
+  08:00 - Medication (5 min) [priority: high] - Max
+  08:05 - Breakfast (10 min) [priority: high] - Biscuit
+  08:15 - Feeding (10 min) [priority: high] - Max
+  08:25 - Morning walk (30 min) [priority: high] - Biscuit
+  08:55 - Short walk (20 min) [priority: medium] - Max
+  09:15 - Grooming (25 min) [priority: medium] - Biscuit
+  09:40 - Enrichment play (20 min) [priority: low] - Biscuit
+
+Completing recurring tasks (today = 2026-07-15):
+----------------------------------------
+  Grooming (weekly) done -> next occurrence due 2026-07-22
+  Medication (daily) done -> next occurrence due 2026-07-16
+
+Checking for schedule conflicts:
+----------------------------------------
+WARNING: schedule conflict - 'Vet appointment' (Biscuit) and 'Bath' (Max) overlap at 09:30.
+  Program still running - 1 conflict(s) reported, not crashed.
+```

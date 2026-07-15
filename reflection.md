@@ -37,6 +37,8 @@ Scheduler considers time and priority contraints, with priority taking precedenc
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+The scheduler places highest priority tasks back to back and stops as soon as then next one doesnt fit. It does not search for smaller tasks that could potentially fill the remaining time. This is reasonable because it assumes the owner wants the tasks completed in order of priority vs quantity.
+
 ---
 
 ## 3. AI Collaboration
@@ -46,10 +48,14 @@ Scheduler considers time and priority contraints, with priority taking precedenc
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+I used AI for all stages of the project other than the initial brainstorming of objects and relationships. Prompts asking the AI to implement and refactor sections were most helpful, as well as asking it to explain why it made certain decisions in the implementation.
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+The initial schedule object suggested by AI did not allow for multiple pets within a single schedule. Evaluating from the perspective of the user, I asked it to allow for multiple pets as a normal multi-pet owner would want to schedule for all their pets.
 
 ---
 
@@ -60,10 +66,15 @@ Scheduler considers time and priority contraints, with priority taking precedenc
 - What behaviors did you test?
 - Why were these tests important?
 
+Tests were written against the major functions and algorithms, including sorting, filtering, conflict detection and edge cases. These tests are important in that they verify the more complex sections of code and odd cases which the user may encounter.
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+
+I have great confidence the scheduler works correctly given the test suite and step by step implementation process with spot checks along the way. Given more time, I would implement robustness tests to guarantee large amounts of data process correctly in the app.
+
 
 ---
 
@@ -73,10 +84,17 @@ Scheduler considers time and priority contraints, with priority taking precedenc
 
 - What part of this project are you most satisfied with?
 
+I am satisfied with the code quality and organized structure of the project, as well as the test suite.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+I would like to imporove the UI significantly, providing nicer elements and flow guiding the user along step-by-step.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+I learned that AI is a powerful partner in designing sytems but still requires user input during critical implementation decision times. The suggestions it makes, if accepted, can significantly cause previous code to be refactored, requiring the developer to review those sections to verify they still reflect the desired implementation.
+ 

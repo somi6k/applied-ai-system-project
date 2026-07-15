@@ -184,7 +184,17 @@ else:
 st.divider()
 
 st.subheader("Build Schedule")
-st.caption("Orders tasks by priority and deadline, then fits them into your available time.")
+st.caption("Sorts by priority and deadline, fits tasks into your time, and checks for conflicts.")
+
+# Sorting preview — chronological timeline via Scheduler.sort_by_time().
+with st.expander("Preview: tasks sorted by time (earliest deadline first)"):
+    ordered = scheduler.sort_by_time()
+    if ordered:
+        for t in ordered:
+            due = t.deadline.strftime("%H:%M") if t.deadline else "no deadline"
+            st.write(f"{due} — {t.name} ({t.duration} min) — {t.pet.name}")
+    else:
+        st.write("No tasks yet.")
 
 if st.button("Generate schedule"):
     plan = scheduler.generate_plan()
@@ -201,9 +211,22 @@ if st.button("Generate schedule"):
     else:
         st.info("Nothing could be scheduled. Add tasks or increase your available time.")
 
+    # Filtering — tasks dropped because the time budget ran out.
     skipped = [t for t in owner.all_tasks() if t.status == "skipped"]
     if skipped:
         st.warning(
-            "Skipped (not enough time): "
+            "Filtered out (not enough time): "
             + ", ".join(f"{t.name} ({t.pet.name})" for t in skipped)
         )
+
+    # Conflict detection — flag any overlapping start times in the plan.
+    conflicts = scheduler.detect_conflicts(plan)
+    if conflicts:
+        st.error("Schedule conflicts detected:")
+        for a, b in conflicts:
+            st.write(
+                f"• {a.name} ({a.pet.name}) overlaps {b.name} ({b.pet.name}) "
+                f"at {b.start.strftime('%H:%M')}"
+            )
+    elif plan:
+        st.success("No conflicts — tasks are scheduled back-to-back.")
