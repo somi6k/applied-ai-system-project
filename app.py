@@ -1,8 +1,8 @@
-from datetime import time
+from datetime import date, time
 
 import streamlit as st
 
-from pawpal_system import Owner, Pet, Task, Scheduler, Priority
+from pawpal_system import Owner, Pet, Task, Scheduler, Priority, Recurrence
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -44,6 +44,11 @@ st.divider()
 
 # Map the UI's priority strings to the Priority enum used by the scheduler.
 PRIORITY_MAP = {"low": Priority.LOW, "medium": Priority.MEDIUM, "high": Priority.HIGH}
+RECURRENCE_MAP = {
+    "none": Recurrence.NONE,
+    "daily": Recurrence.DAILY,
+    "weekly": Recurrence.WEEKLY,
+}
 
 # Create the domain objects ONCE and keep them in session_state so they persist
 # across reruns. Guarded with `not in` so reruns don't wipe them out.
@@ -82,6 +87,24 @@ if not owner.pets:
 
 st.caption("Current pets: " + ", ".join(f"{p.name} ({len(p.tasks)} tasks)" for p in owner.pets))
 
+done_pets = owner.filter_pets(completed=True)
+if done_pets:
+    st.success("All done: " + ", ".join(p.name for p in done_pets))
+
+pet_query = st.text_input("Search pets by name", placeholder="type a name to filter…")
+if pet_query.strip():
+    matches = owner.filter_pets(name=pet_query.strip())
+    if matches:
+        st.caption(
+            "Matches: "
+            + ", ".join(
+                f"{p.name} — {'all done' if p.is_complete() else f'{len(p.tasks)} tasks'}"
+                for p in matches
+            )
+        )
+    else:
+        st.caption(f"No pets match “{pet_query.strip()}”.")
+
 st.markdown("### Tasks")
 pet_index = st.selectbox(
     "Add tasks for",
@@ -99,23 +122,62 @@ with st.form("add_task", clear_on_submit=True):
         priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
     use_deadline = st.checkbox("Set a deadline")
     deadline_val = st.time_input("Deadline (time of day)", value=time(9, 0))
+    repeats = st.selectbox("Repeats", ["none", "daily", "weekly"])
     if st.form_submit_button("Add task"):
         deadline = deadline_val if use_deadline else None
-        pet.add_task(Task(task_title, int(duration), PRIORITY_MAP[priority], deadline=deadline))
+        pet.add_task(
+            Task(
+                task_title,
+                int(duration),
+                PRIORITY_MAP[priority],
+                deadline=deadline,
+                recurrence=RECURRENCE_MAP[repeats],
+            )
+        )
 
 if pet.tasks:
-    st.write(f"{pet.name}'s tasks:")
-    st.table(
-        [
-            {
-                "title": t.name,
-                "duration_minutes": t.duration,
-                "priority": t.priority.name.lower(),
-                "deadline": t.deadline.strftime("%H:%M") if t.deadline else "—",
-            }
-            for t in pet.tasks
-        ]
-    )
+    row = st.columns([3, 1.5])
+    row[0].write(f"{pet.name}'s tasks:")
+    if row[1].button("Mark all done", key=f"all_done_{pet_index}"):
+        # Snapshot the list first: complete() appends the next occurrence of a
+        # recurring task, and we must not complete those freshly-spawned tasks.
+        for t in list(pet.tasks):
+            t.complete(date.today())
+        # Clear per-task checkbox state so the boxes re-render as ticked.
+        for i in range(len(pet.tasks)):
+            st.session_state.pop(f"done_{pet_index}_{i}", None)
+        st.rerun()
+    header = st.columns([0.7, 3, 1.3, 1.3, 1.3])
+    for col, label in zip(header, ["done", "title", "duration", "priority", "deadline"]):
+        col.caption(label)
+    spawned_recurring = False
+    # Iterate a snapshot so a spawned occurrence isn't processed mid-loop.
+    for i, t in list(enumerate(pet.tasks)):
+        cols = st.columns([0.7, 3, 1.3, 1.3, 1.3])
+        is_done = cols[0].checkbox(
+            "done",
+            value=(t.status == "done"),
+            key=f"done_{pet_index}_{i}",
+            label_visibility="collapsed",
+        )
+        # Toggle completion. Only act on a real transition so we don't re-spawn
+        # a recurring task's next occurrence on every rerun.
+        if is_done and t.status != "done":
+            if t.complete(date.today()) is not None:
+                spawned_recurring = True
+        elif not is_done and t.status == "done":
+            t.update_status("pending")
+        label = t.name
+        if t.recurrence is not Recurrence.NONE:
+            label += f" 🔁 {t.recurrence.value}"
+        title = f"~~{label}~~" if t.status == "done" else label
+        cols[1].markdown(title)
+        cols[2].write(f"{t.duration} min")
+        cols[3].write(t.priority.name.lower())
+        cols[4].write(t.deadline.strftime("%H:%M") if t.deadline else "—")
+    if spawned_recurring:
+        # Redraw so the newly-created next occurrence shows up immediately.
+        st.rerun()
 else:
     st.info(f"No tasks for {pet.name} yet. Add one above.")
 

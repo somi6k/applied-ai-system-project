@@ -77,14 +77,15 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+The scheduling logic lives in `pawpal_system.py`. Each algorithm below has its
+own method with a docstring describing its strategy.
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time`, `Scheduler._sort_key` (used by `Scheduler.generate_plan`) | `sort_by_time` orders tasks chronologically by deadline (deadline-less tasks sort last via a 24:00 sentinel). `generate_plan` sorts by priority → deadline → duration. |
+| Filtering | `Owner.filter_pets`, `Pet.is_complete` | `filter_pets` filters pets by name (case-insensitive substring) and/or task-completion state, combined with AND. `generate_plan` also filters out tasks once the time budget runs out (marks them `skipped`). |
+| Conflict handling | `Scheduler.detect_conflicts` | Lightweight O(n log n) sort-then-sweep over scheduled start times; flags overlapping tasks (same or different pets) with a printed warning instead of crashing. |
+| Recurring tasks | `Task.complete` (see the `Recurrence` enum) | Completing a daily/weekly task auto-creates its next occurrence — daily is `today + 1 day`, weekly is `today + 1 week` (via `timedelta`). |
 
 ## 📸 Demo Walkthrough
 

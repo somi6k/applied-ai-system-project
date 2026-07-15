@@ -30,6 +30,8 @@ Based on AI feedback, I changed priority from strings to an enum to make sorting
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+Scheduler considers time and priority contraints, with priority taking precedence over maximizing time allocation. For example several low priority tasks could fill an available time slot versus a single high priority task. Ai helped decide to use priority allocation as the preferred method as the Owner has already determined which has the highest priority.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.

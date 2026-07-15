@@ -11,8 +11,8 @@ Responsibilities:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import time
-from enum import IntEnum
+from datetime import date, time, timedelta
+from enum import Enum, IntEnum
 
 
 class Priority(IntEnum):
@@ -21,6 +21,22 @@ class Priority(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
+
+
+class Recurrence(Enum):
+    """How often a task repeats after it is completed."""
+
+    NONE = "none"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+
+    @property
+    def step(self) -> timedelta | None:
+        """How far to advance the due date for the next occurrence."""
+        return {
+            Recurrence.DAILY: timedelta(days=1),
+            Recurrence.WEEKLY: timedelta(weeks=1),
+        }.get(self)
 
 
 def _to_minutes(t: time) -> int:
@@ -34,12 +50,19 @@ def _from_minutes(total: int) -> time:
     return time(hour=total // 60, minute=total % 60)
 
 
+def _pet_name(task: Task) -> str:
+    """The name of the pet a task belongs to, or '?' if unattached."""
+    return task.pet.name if task.pet else "?"
+
+
 @dataclass
 class Task:
     name: str
     duration: int  # minutes
     priority: Priority = Priority.MEDIUM
     deadline: time | None = None
+    recurrence: Recurrence = Recurrence.NONE
+    due_date: date | None = None  # calendar day this task is due
     # start/status are set by the scheduler when it builds a plan.
     start: time | None = None
     status: str = "pending"  # pending | scheduled | skipped | done
@@ -56,6 +79,36 @@ class Task:
     def update_status(self, status: str) -> None:
         """Set the task's status (e.g. pending, scheduled, skipped, done)."""
         self.status = status
+
+    def complete(self, today: date | None = None) -> Task | None:
+        """Mark this task done and, if it recurs, spawn the next occurrence.
+
+        For a daily task the next task is due today + 1 day; for a weekly task,
+        today + 1 week (via ``timedelta``). The new task copies this task's
+        details, resets to "pending", and is attached to the same pet. Returns
+        the newly created task, or ``None`` for a non-recurring task.
+
+        ``today`` defaults to the current date; pass it explicitly for
+        deterministic tests.
+        """
+        self.status = "done"
+
+        step = self.recurrence.step
+        if step is None:  # Recurrence.NONE — nothing to repeat.
+            return None
+
+        base = today if today is not None else date.today()
+        next_task = Task(
+            name=self.name,
+            duration=self.duration,
+            priority=self.priority,
+            deadline=self.deadline,
+            recurrence=self.recurrence,
+            due_date=base + step,
+        )
+        if self.pet is not None:
+            self.pet.add_task(next_task)
+        return next_task
 
 
 @dataclass
@@ -93,6 +146,10 @@ class Pet:
         task.pet = self
         self.tasks.append(task)
 
+    def is_complete(self) -> bool:
+        """True if the pet has tasks and all of them are marked "done"."""
+        return bool(self.tasks) and all(t.status == "done" for t in self.tasks)
+
 
 @dataclass
 class Owner:
@@ -122,6 +179,26 @@ class Owner:
         """Every task across all of this owner's pets."""
         return [task for pet in self.pets for task in pet.tasks]
 
+    def filter_pets(
+        self, name: str | None = None, completed: bool | None = None
+    ) -> list[Pet]:
+        """Return the pets matching the given filters.
+
+        - name: case-insensitive substring match on the pet's name.
+        - completed: if True, keep only pets whose tasks are all done; if
+          False, keep only pets with at least one outstanding task; if None,
+          don't filter on completion.
+
+        Filters combine with AND. Passing no filters returns all pets.
+        """
+        needle = name.lower() if name else None
+        return [
+            pet
+            for pet in self.pets
+            if (needle is None or needle in pet.name.lower())
+            and (completed is None or pet.is_complete() == completed)
+        ]
+
 
 @dataclass
 class Scheduler:
@@ -133,6 +210,23 @@ class Scheduler:
     def assign_owner(self, owner: Owner) -> None:
         """Set the owner whose tasks this scheduler will plan."""
         self.owner = owner
+
+    def sort_by_time(self) -> list[Task]:
+        """Return the owner's tasks sorted by time of day (earliest first).
+
+        Tasks are ordered by their deadline. Tasks with no deadline have no
+        fixed time, so they sort to the end (using 24:00 as a sentinel). The
+        original task lists on each pet are left untouched.
+        """
+        if self.owner is None:
+            raise ValueError("Scheduler has no owner assigned.")
+
+        # Lambda key: deadline in minutes since midnight, or end-of-day for
+        # deadline-less tasks so they fall after every timed task.
+        return sorted(
+            self.owner.all_tasks(),
+            key=lambda task: _to_minutes(task.deadline) if task.deadline else 24 * 60,
+        )
 
     def generate_plan(self, available_minutes: int | None = None) -> list[Task]:
         """Build a daily plan from all of the owner's tasks.
@@ -160,12 +254,17 @@ class Scheduler:
         )
 
         tasks = self.owner.all_tasks()
-        # Reset any prior planning so re-running is idempotent.
+        # Reset any prior planning so re-running is idempotent, but leave
+        # already-completed tasks untouched — a done task isn't replanned.
         for task in tasks:
+            if task.status == "done":
+                continue
             task.start = None
             task.status = "pending"
 
-        ordered = sorted(tasks, key=self._sort_key)
+        ordered = sorted(
+            (t for t in tasks if t.status != "done"), key=self._sort_key
+        )
 
         plan: list[Task] = []
         cursor = _to_minutes(self.day_start)
@@ -187,6 +286,50 @@ class Scheduler:
             if task.status != "skipped":
                 task.status = "skipped"
         return plan
+
+    def detect_conflicts(
+        self, tasks: list[Task] | None = None
+    ) -> list[tuple[Task, Task]]:
+        """Warn (don't crash) about tasks whose scheduled times overlap.
+
+        A conflict is any pair of tasks whose [start, start + duration)
+        intervals intersect — whether they belong to the same pet or different
+        pets. The owner can only do one thing at a time, so overlaps are a
+        planning problem worth flagging.
+
+        Strategy (lightweight, O(n log n)): consider only tasks that have a
+        `start`, sort them by start time, then sweep left-to-right keeping the
+        latest end seen so far. Any task that begins before that end overlaps
+        something earlier. This avoids the O(n^2) all-pairs comparison.
+
+        Prints a warning line per conflicting pair and returns the pairs.
+        Returns an empty list when there are no conflicts.
+        """
+        source = tasks if tasks is not None else (
+            self.owner.all_tasks() if self.owner else []
+        )
+        timed = [t for t in source if t.start is not None]
+        timed.sort(key=lambda t: _to_minutes(t.start))
+
+        conflicts: list[tuple[Task, Task]] = []
+        # `last` is the task with the furthest end seen so far.
+        last: Task | None = None
+        last_end = -1
+        for task in timed:
+            start = _to_minutes(task.start)
+            end = start + task.duration
+            if last is not None and start < last_end:
+                conflicts.append((last, task))
+                print(
+                    f"WARNING: schedule conflict - "
+                    f"'{last.name}' ({_pet_name(last)}) and "
+                    f"'{task.name}' ({_pet_name(task)}) overlap "
+                    f"at {task.start.strftime('%H:%M')}."
+                )
+            # Keep whichever task reaches furthest so we catch chained overlaps.
+            if end > last_end:
+                last, last_end = task, end
+        return conflicts
 
     @staticmethod
     def _sort_key(task: Task) -> tuple[int, int, int]:
