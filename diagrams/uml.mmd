@@ -1,13 +1,22 @@
 classDiagram
     %% PawPal+ class diagram — keep updated to match your implementation.
 
+    class Priority {
+        <<enumeration>>
+        LOW
+        MEDIUM
+        HIGH
+    }
+
     class Owner {
         +str name
-        +list~str~ availability
+        +int available_minutes
         +dict preferences
+        +list~Pet~ pets
         +change_name(new_name str) None
-        +update_availability(availability list) None
+        +update_availability(available_minutes int) None
         +update_preferences(preferences dict) None
+        +add_pet(pet Pet) None
     }
 
     class Pet {
@@ -27,24 +36,23 @@ classDiagram
     class Task {
         +str name
         +int duration
-        +str priority
-        +str deadline
+        +Priority priority
+        +time deadline
+        +time start
+        +str status
         +Pet pet
         +change_time(duration int) None
-        +change_deadline(deadline str) None
+        +change_deadline(deadline time) None
+        +update_status(status str) None
     }
 
     class Schedule {
         +Owner owner
         +list~Pet~ pets
         +list~Task~ tasks
-        +str time
-        +str status
         +assign_owner(owner Owner) None
         +add_pet(pet Pet) None
         +add_task(task Task) None
-        +assign_time(time str) None
-        +update_status(status str) None
         +generate_plan() list~Task~
     }
 
@@ -53,3 +61,4 @@ classDiagram
     Schedule "*" --> "*" Pet : cares for
     Schedule "1" o-- "*" Task : contains
     Task "*" --> "1" Pet : belongs to
+    Task --> Priority : uses

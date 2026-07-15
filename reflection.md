@@ -19,6 +19,8 @@ Schedule (attributes: owner, pet, task, time, status) (methods: assign owner, as
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
+Based on AI feedback, I changed priority from strings to an enum to make sorting easier, we added a start/end time field for Tasks, added a pets field to the Owner to fix the relationship, and moved status from Schedule to Task.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
