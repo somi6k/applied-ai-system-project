@@ -46,12 +46,15 @@ class Task:
     pet: Pet | None = None  # back-reference, set by Pet.add_task
 
     def change_time(self, duration: int) -> None:
+        """Set the task's duration in minutes."""
         self.duration = duration
 
     def change_deadline(self, deadline: time) -> None:
+        """Set the time of day by which the task should be done."""
         self.deadline = deadline
 
     def update_status(self, status: str) -> None:
+        """Set the task's status (e.g. pending, scheduled, skipped, done)."""
         self.status = status
 
 
@@ -66,18 +69,23 @@ class Pet:
     tasks: list[Task] = field(default_factory=list)
 
     def change_name(self, new_name: str) -> None:
+        """Rename the pet."""
         self.name = new_name
 
     def update_medication(self, medication: str) -> None:
+        """Add a medication to the pet's list."""
         self.medications.append(medication)
 
     def update_appointment(self, appointment: str) -> None:
+        """Add an upcoming appointment to the pet's list."""
         self.appointments.append(appointment)
 
     def update_allergies(self, allergy: str) -> None:
+        """Add an allergy to the pet's list."""
         self.allergies.append(allergy)
 
     def update_food_preference(self, food: str) -> None:
+        """Set the pet's preferred food."""
         self.preferred_food = food
 
     def add_task(self, task: Task) -> None:
@@ -95,15 +103,19 @@ class Owner:
     pets: list[Pet] = field(default_factory=list)
 
     def change_name(self, new_name: str) -> None:
+        """Rename the owner."""
         self.name = new_name
 
     def update_availability(self, available_minutes: int) -> None:
+        """Set how many minutes the owner has available today."""
         self.available_minutes = available_minutes
 
     def update_preferences(self, preferences: dict) -> None:
+        """Merge the given preferences into the owner's preferences."""
         self.preferences.update(preferences)
 
     def add_pet(self, pet: Pet) -> None:
+        """Add a pet to the owner."""
         self.pets.append(pet)
 
     def all_tasks(self) -> list[Task]:
@@ -119,6 +131,7 @@ class Scheduler:
     day_start: time = time(8, 0)  # when the plan's first task begins
 
     def assign_owner(self, owner: Owner) -> None:
+        """Set the owner whose tasks this scheduler will plan."""
         self.owner = owner
 
     def generate_plan(self, available_minutes: int | None = None) -> list[Task]:
@@ -177,6 +190,7 @@ class Scheduler:
 
     @staticmethod
     def _sort_key(task: Task) -> tuple[int, int, int]:
+        """Order tasks by priority (high first), then deadline, then duration."""
         # Negative priority -> HIGH sorts first. No deadline -> sorts last.
         deadline_min = _to_minutes(task.deadline) if task.deadline else 24 * 60
         return (-int(task.priority), deadline_min, task.duration)
