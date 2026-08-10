@@ -1,0 +1,30 @@
+$ python evaluate.py --offline -v
+# captured 2026-08-09 21:47 · exit code 0
+# Guardrail replay: one clean and six adversarial model outputs.
+------------------------------------------------------------------------------
+
+Guardrail replay — 7 cases, 4 retrieved passages
+
+  [PASS] clean routine passes untouched — 0 issue(s)
+           kept: ['Sniff walk', 'Brush teeth']
+  [PASS] over-budget routine is trimmed to fit — 1 issue(s)
+           [error] budget_exceeded: 70 min suggested, 45 min available
+           kept: ['Long hike']
+  [PASS] allergen suggestion is dropped — 1 issue(s)
+           [error] allergen_conflict: 'Chicken treat training' mentions allergen 'chicken'
+           kept: ['Sniff walk']
+  [PASS] fabricated citation is dropped — 1 issue(s)
+           [error] bad_citation: 'Hydrotherapy' cites [9] but only 4 passages were retrieved
+           kept: ['Sniff walk']
+  [PASS] uncited activity is kept but flagged — 1 issue(s)
+           [warning] missing_citation: 'Evening cuddle' cites no passage
+           kept: ['Evening cuddle']
+  [PASS] implausible duration is clamped — 1 issue(s)
+           [error] implausible_duration: 'Marathon' had 0 min
+           kept: ['Marathon']
+  [PASS] duplicate of an existing task is flagged — 1 issue(s)
+           [warning] duplicate_task: 'Morning walk' is already a task
+           kept: ['Morning walk']
+  [PASS] non-JSON response raises GenerationError
+
+All checks passed.

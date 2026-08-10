@@ -452,6 +452,36 @@ class Routine:
 
 MAX_ACTIVITY_MINUTES = 240
 _CITATION_RE = re.compile(r"\[(\d+)\]")
+# Phrases that flip a mention of an allergen from "feed this" to "don't".
+_AVOIDANCE_RE = re.compile(
+    r"avoid|free[- ]from|free[- ]of|[- ]free|without|instead of|rather than|"
+    r"exclud|allerg|not contain|no longer|never",
+    re.IGNORECASE,
+)
+_AVOIDANCE_WINDOW = 60  # characters either side of the mention to inspect
+
+
+def _allergen_hit(activity: Activity, allergens: Sequence[str]) -> str | None:
+    """The allergen an activity would expose the pet to, if any.
+
+    A mention in the activity *name* is always a conflict — that is what the
+    owner will actually do. A mention in the reason is only a conflict when it
+    is not part of an avoidance instruction, so "use chicken-free kibble" and
+    "respecting her chicken allergy" are allowed through while "reward with
+    chicken strips" is not.
+    """
+    name = activity.name.lower()
+    why = activity.why.lower()
+    for allergen in allergens:
+        if allergen in name:
+            return allergen
+        for match in re.finditer(re.escape(allergen), why):
+            window = why[
+                max(0, match.start() - _AVOIDANCE_WINDOW) : match.end() + _AVOIDANCE_WINDOW
+            ]
+            if not _AVOIDANCE_RE.search(window):
+                return allergen
+    return None
 
 
 def validate_routine(
@@ -516,8 +546,7 @@ def validate_routine(
             )
 
         # -- safety: never suggest something the pet reacts to
-        haystack = f"{activity.name} {activity.why}".lower()
-        hit = next((a for a in allergens if a in haystack), None)
+        hit = _allergen_hit(activity, allergens)
         if hit:
             issues.append(
                 Issue("allergen_conflict", f"'{activity.name}' mentions allergen '{hit}'")
@@ -703,6 +732,14 @@ class WellnessAdvisor:
         except MissingAPIKey:
             raise
         except Exception as exc:  # noqa: BLE001 - surface one clear error to the UI
+            message = str(exc)
+            if "RESOURCE_EXHAUSTED" in message or "429" in message:
+                # Found while evaluating: the free tier allows only a handful of
+                # requests per day, and the raw 429 body is a wall of JSON.
+                raise GenerationError(
+                    "Gemini quota exhausted — the free tier caps requests per day "
+                    "for this model. Retrieval still works; try generating again later."
+                ) from exc
             raise GenerationError(f"Gemini request failed: {exc}") from exc
 
         routine = parse_routine(response.text, results, self.kb.mode)

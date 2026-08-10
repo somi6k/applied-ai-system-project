@@ -43,14 +43,33 @@ def get_advisor() -> WellnessAdvisor | None:
         return None
 
 
+def start_session(*, demo: bool) -> None:
+    """Put a fresh owner and scheduler into session_state.
+
+    ``demo=True`` seeds the walkthrough data; ``demo=False`` leaves the app
+    blank so a new user can enter their own name and pets.
+    """
+    owner = Owner("Jordan" if demo else "", available_minutes=120)
+    if demo:
+        owner.add_pet(Pet("Mochi", "dog"))
+    st.session_state.owner = owner
+    st.session_state.scheduler = Scheduler(owner)
+
+
+def reset_session(*, demo: bool) -> None:
+    """Hand the app to a new user: clear every entry and all widget state.
+
+    ``clear()`` also drops the widget keys (checkboxes, per-pet text inputs,
+    the pet selector), so nothing from the previous owner survives the rerun.
+    """
+    st.session_state.clear()
+    start_session(demo=demo)
+
+
 # Create the domain objects ONCE and keep them in session_state so they persist
 # across reruns. Guarded with `not in` so reruns don't wipe them out.
 if "owner" not in st.session_state:
-    owner = Owner("Jordan", available_minutes=120)
-    owner.add_pet(Pet("Mochi", "dog"))
-    st.session_state.owner = owner
-if "scheduler" not in st.session_state:
-    st.session_state.scheduler = Scheduler(st.session_state.owner)
+    start_session(demo=True)
 
 owner = st.session_state.owner
 scheduler = st.session_state.scheduler
@@ -61,7 +80,7 @@ scheduler = st.session_state.scheduler
 with st.sidebar:
     st.header("🐾 PawPal+")
 
-    owner_name = st.text_input("Owner name", value=owner.name)
+    owner_name = st.text_input("Owner name", value=owner.name, placeholder="Your name")
     available_minutes = st.slider(
         "Time available today",
         min_value=0,
@@ -113,6 +132,20 @@ with st.sidebar:
             f"🔑 No API key · {len(advisor.kb.passages)} passages, keyword search only. "
             "Set `GEMINI_API_KEY` in `.env`."
         )
+
+    st.divider()
+
+    with st.popover("↩︎ Start over", use_container_width=True):
+        st.caption(
+            "Clears the owner, pets, tasks, and any suggested routines so "
+            "someone else can start fresh. This can't be undone."
+        )
+        if st.button("Clear everything", type="primary", use_container_width=True):
+            reset_session(demo=False)
+            st.rerun()
+        if st.button("Restore demo data", use_container_width=True):
+            reset_session(demo=True)
+            st.rerun()
 
 
 # --- header: the day at a glance -------------------------------------------

@@ -447,6 +447,30 @@ def test_activity_naming_an_allergen_is_dropped():
     assert [a.name for a in routine.activities] == ["Sniff walk"]
 
 
+def test_allergen_named_only_in_an_avoidance_phrase_is_kept():
+    # Regression: the first guardrail matched the raw substring, so an activity
+    # that mentioned the allergen *in order to avoid it* was wrongly dropped.
+    pet, owner = _pet_and_owner()
+    routine = _routine(
+        Activity("Kibble reward training", 10, "medium",
+                 why="Use her regular chicken-free kibble as rewards [1]."),
+        Activity("Portion meals", 5, "low",
+                 why="Measure portions, respecting her chicken allergy [2]."),
+    )
+
+    assert validate_routine(routine, pet, owner) == []
+    assert len(routine.activities) == 2
+
+
+def test_allergen_offered_as_a_reward_is_still_dropped():
+    pet, owner = _pet_and_owner()
+    routine = _routine(
+        Activity("Reward training", 10, "medium", why="Reward with chicken strips [1].")
+    )
+
+    assert "allergen_conflict" in _codes(validate_routine(routine, pet, owner))
+
+
 def test_citation_past_the_retrieved_passages_is_dropped():
     pet, owner = _pet_and_owner()
     routine = _routine(
@@ -558,6 +582,22 @@ def test_pet_with_no_allergies_is_unaffected():
     routine = _routine(Activity("Chicken treat training", 10, "low", why="[1]"))
 
     assert validate_routine(routine, pet, owner) == []
+
+
+def test_quota_error_is_reported_in_plain_language(knowledge_dir, tmp_path):
+    pytest.importorskip("google.genai")
+
+    class QuotaClient:
+        class models:
+            @staticmethod
+            def generate_content(**kwargs):
+                raise RuntimeError("429 RESOURCE_EXHAUSTED. {'error': {...}}")
+
+    pet, owner = _pet_and_owner()
+    advisor = WellnessAdvisor(kb=_kb(knowledge_dir, tmp_path), _cached_client=QuotaClient())
+
+    with pytest.raises(GenerationError, match="quota exhausted"):
+        advisor.suggest(pet, owner)
 
 
 def test_suggest_raises_when_nothing_is_retrieved(tmp_path):

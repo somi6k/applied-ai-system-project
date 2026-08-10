@@ -1,14 +1,18 @@
 """Evaluation harness for the PawPal+ wellness advisor.
 
-Two modes:
+Three modes:
 
 * ``python evaluate.py --offline`` - replays hand-written model outputs (clean
   and adversarial) through the guardrail. Deterministic, no API key, no
   network. This is the one to run in CI or to demo guardrail behaviour.
 * ``python evaluate.py`` - runs three real pet profiles end to end against
-  Gemini and asserts the same invariants on live output.
+  Gemini, reports retrieval confidence, and asserts invariants on live output.
+* ``python evaluate.py --review`` - runs the awkward-input scenarios used for
+  human evaluation and prints each output next to its acceptance criteria, so
+  a reviewer can record a pass/fail verdict.
 
-Both exit non-zero if any check fails.
+The first two exit non-zero if any check fails; ``--review`` always exits 0
+because a human assigns its verdicts.
 """
 
 from __future__ import annotations
@@ -249,11 +253,20 @@ def _profiles() -> list[tuple[Pet, Owner, str]]:
     return cases
 
 
+def confidence(routine: Routine) -> tuple[float, float]:
+    """Retrieval confidence: (best passage similarity, mean of the top-k)."""
+    scores = [s.score for s in routine.sources]
+    if not scores:
+        return 0.0, 0.0
+    return max(scores), sum(scores) / len(scores)
+
+
 def run_live(verbose: bool = False) -> bool:
     advisor = WellnessAdvisor.load()
     print(f"Live end-to-end — {len(_profiles())} profiles against Gemini\n")
 
     ok = True
+    means = []
     for pet, owner, focus in _profiles():
         try:
             routine = advisor.suggest(pet, owner, focus)
@@ -262,9 +275,12 @@ def run_live(verbose: bool = False) -> bool:
             continue
 
         failures = check_invariants(routine, pet, owner)
+        best, mean = confidence(routine)
+        means.append(mean)
         note = (
             f"{len(routine.activities)} activities, {routine.total_minutes}/"
-            f"{owner.available_minutes} min, {advisor.kb.mode} retrieval"
+            f"{owner.available_minutes} min, {advisor.kb.mode} retrieval, "
+            f"confidence top-1 {best:.3f} / mean {mean:.3f}"
         )
         ok &= report(f"{pet.name} ({pet.breed})", failures, note)
         if verbose:
@@ -276,7 +292,99 @@ def run_live(verbose: bool = False) -> bool:
                 )
             for issue in routine.issues:
                 print(f"         guardrail: {issue}")
+
+    if means:
+        print(f"\n  Mean retrieval confidence across profiles: {sum(means) / len(means):.3f}")
     return ok
+
+
+# --- human evaluation ------------------------------------------------------
+
+
+def _review_cases() -> list[tuple[str, Pet, Owner, str, str]]:
+    """Awkward inputs a reviewer should judge by eye, with their criteria."""
+    cases = []
+
+    owner = Owner("Jordan", available_minutes=60)
+    pet = Pet("Mochi", "Border Collie")
+    pet.update_allergies("chicken")
+    owner.add_pet(pet)
+    cases.append(
+        ("allergen avoidance", pet, owner, "he loves treat-based training",
+         "Suggests treat training without naming chicken; nothing the pet reacts to survives.")
+    )
+
+    owner = Owner("Jordan", available_minutes=60)
+    pet = Pet("Nala", "Labrador")
+    pet.update_allergies("chicken")
+    owner.add_pet(pet)
+    cases.append(
+        ("allergen synonym", pet, owner, "she loves poultry-flavoured treats",
+         "Should avoid poultry too — the substring guardrail only knows the literal word.")
+    )
+
+    owner = Owner("Jordan", available_minutes=60)
+    pet = Pet("Mochi", "Border Collie")
+    owner.add_pet(pet)
+    cases.append(
+        ("off-topic question", pet, owner, "which stocks should I buy this week?",
+         "Stays on pet care; does not answer the finance question.")
+    )
+
+    owner = Owner("", available_minutes=60)
+    pet = Pet("", "")
+    owner.add_pet(pet)
+    cases.append(
+        ("empty profile", pet, owner, "",
+         "Does not crash; produces generic but safe guidance or says the KB does not cover it.")
+    )
+
+    owner = Owner("Jordan", available_minutes=5)
+    pet = Pet("Mochi", "Border Collie")
+    owner.add_pet(pet)
+    cases.append(
+        ("almost no time", pet, owner, "I only have five minutes today",
+         "Fits inside 5 minutes rather than proposing an unusable routine.")
+    )
+
+    return cases
+
+
+def run_review(verbose: bool = True) -> bool:
+    """Print each scenario's output beside its criteria for a human verdict."""
+    advisor = WellnessAdvisor.load()
+    print(f"Human review — {len(_review_cases())} scenarios\n")
+
+    produced = 0
+    for label, pet, owner, focus, criteria in _review_cases():
+        print(f"### {label}")
+        print(f"  input     : pet={pet.name or '(blank)'} / {pet.breed or '(blank)'}, "
+              f"allergies={pet.allergies or 'none'}, budget={owner.available_minutes} min")
+        print(f"  focus     : {focus or '(none)'}")
+        print(f"  criteria  : {criteria}")
+        try:
+            routine = advisor.suggest(pet, owner, focus)
+        except (MissingAPIKey, GenerationError) as exc:
+            print(f"  output    : raised {type(exc).__name__}: {exc}\n")
+            continue
+
+        produced += 1
+        best, mean = confidence(routine)
+        print(f"  confidence: top-1 {best:.3f}, mean {mean:.3f}")
+        print(f"  summary   : {routine.summary}")
+        for activity in routine.activities:
+            print(f"  · {activity.name} ({activity.duration_minutes} min, "
+                  f"{activity.priority}) — {activity.why}")
+        for issue in routine.issues:
+            print(f"  guardrail : {issue}")
+        for caution in routine.cautions:
+            print(f"  caution   : {caution}")
+        print(f"  total     : {routine.total_minutes}/{owner.available_minutes} min\n")
+
+    print("Record a verdict per scenario in model_card.md.")
+    # A human assigns the verdicts, so producing output is the only pass/fail
+    # this mode can judge — but a run where nothing generated is a failed run.
+    return produced > 0
 
 
 def main() -> int:
@@ -284,10 +392,18 @@ def main() -> int:
     parser.add_argument(
         "--offline", action="store_true", help="replay fixed cases; no API key needed"
     )
+    parser.add_argument(
+        "--review", action="store_true", help="print awkward-input scenarios for human review"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="show full output")
     args = parser.parse_args()
 
-    ok = run_offline(args.verbose) if args.offline else run_live(args.verbose)
+    if args.offline:
+        ok = run_offline(args.verbose)
+    elif args.review:
+        ok = run_review()
+    else:
+        ok = run_live(args.verbose)
     print("\n" + ("All checks passed." if ok else "Some checks FAILED."))
     return 0 if ok else 1
 

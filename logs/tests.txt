@@ -1,0 +1,78 @@
+$ python -m pytest -v
+# captured 2026-08-09 21:47 · exit code 0
+# The full automated test suite (scheduler + RAG + guardrail).
+------------------------------------------------------------------------------
+
+============================= test session starts =============================
+platform win32 -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\king\AppData\Local\Programs\Python\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\king\Documents\Codepath\ai110\applied-ai-system-project
+plugins: anyio-4.13.0
+collecting ... collected 64 items
+
+tests/test_pawpal.py::test_marking_task_done_changes_status PASSED       [  1%]
+tests/test_pawpal.py::test_adding_task_to_pet_increases_task_count PASSED [  3%]
+tests/test_pawpal.py::test_deadline_task_sorts_before_deadline_less_task PASSED [  4%]
+tests/test_pawpal.py::test_sort_is_stable_on_full_tie PASSED             [  6%]
+tests/test_pawpal.py::test_greedy_break_skips_a_later_task_that_would_have_fit PASSED [  7%]
+tests/test_pawpal.py::test_task_longer_than_budget_is_skipped PASSED     [  9%]
+tests/test_pawpal.py::test_daily_task_spawns_single_next_occurrence PASSED [ 10%]
+tests/test_pawpal.py::test_weekly_task_advances_across_month_boundary PASSED [ 12%]
+tests/test_pawpal.py::test_non_recurring_complete_returns_none_and_spawns_nothing PASSED [ 14%]
+tests/test_pawpal.py::test_completing_twice_spawns_two_occurrences PASSED [ 15%]
+tests/test_pawpal.py::test_chained_overlap_reports_furthest_reaching_task PASSED [ 17%]
+tests/test_pawpal.py::test_back_to_back_tasks_do_not_conflict PASSED     [ 18%]
+tests/test_pawpal.py::test_unscheduled_tasks_are_ignored_in_conflicts PASSED [ 20%]
+tests/test_pawpal.py::test_zero_budget_skips_everything PASSED           [ 21%]
+tests/test_pawpal.py::test_scheduler_without_owner_raises PASSED         [ 23%]
+tests/test_pawpal.py::test_detect_conflicts_with_no_owner_returns_empty PASSED [ 25%]
+tests/test_wellness_rag.py::test_split_document_creates_one_passage_per_heading PASSED [ 26%]
+tests/test_wellness_rag.py::test_passage_content_includes_titles_for_retrieval PASSED [ 28%]
+tests/test_wellness_rag.py::test_load_passages_reads_every_markdown_file PASSED [ 29%]
+tests/test_wellness_rag.py::test_load_passages_rejects_a_missing_directory PASSED [ 31%]
+tests/test_wellness_rag.py::test_bundled_knowledge_base_is_non_empty PASSED [ 32%]
+tests/test_wellness_rag.py::test_cosine_similarity_of_identical_vectors_is_one PASSED [ 34%]
+tests/test_wellness_rag.py::test_cosine_similarity_ignores_magnitude PASSED [ 35%]
+tests/test_wellness_rag.py::test_cosine_similarity_of_zero_vector_is_zero PASSED [ 37%]
+tests/test_wellness_rag.py::test_keyword_similarity_prefers_the_matching_passage PASSED [ 39%]
+tests/test_wellness_rag.py::test_keyword_similarity_of_an_empty_query_is_zero PASSED [ 40%]
+tests/test_wellness_rag.py::test_vector_retrieval_ranks_by_cosine_similarity PASSED [ 42%]
+tests/test_wellness_rag.py::test_retrieve_returns_at_most_k_and_drops_zero_scores PASSED [ 43%]
+tests/test_wellness_rag.py::test_query_uses_the_retrieval_query_task_type PASSED [ 45%]
+tests/test_wellness_rag.py::test_embeddings_are_cached_across_knowledge_bases PASSED [ 46%]
+tests/test_wellness_rag.py::test_edited_passage_is_re_embedded PASSED    [ 48%]
+tests/test_wellness_rag.py::test_corrupt_cache_falls_back_to_re_embedding PASSED [ 50%]
+tests/test_wellness_rag.py::test_missing_embedder_degrades_to_keyword_search PASSED [ 51%]
+tests/test_wellness_rag.py::test_embedder_failure_degrades_instead_of_raising PASSED [ 53%]
+tests/test_wellness_rag.py::test_empty_knowledge_base_retrieves_nothing PASSED [ 54%]
+tests/test_wellness_rag.py::test_profile_includes_health_details_and_budget PASSED [ 56%]
+tests/test_wellness_rag.py::test_profile_omits_empty_fields PASSED       [ 57%]
+tests/test_wellness_rag.py::test_format_context_numbers_passages_for_citation PASSED [ 59%]
+tests/test_wellness_rag.py::test_parse_routine_reads_activities_and_cautions PASSED [ 60%]
+tests/test_wellness_rag.py::test_parse_routine_skips_a_malformed_activity PASSED [ 62%]
+tests/test_wellness_rag.py::test_parse_routine_rejects_non_json PASSED   [ 64%]
+tests/test_wellness_rag.py::test_activities_convert_to_schedulable_tasks PASSED [ 65%]
+tests/test_wellness_rag.py::test_unknown_priority_falls_back_to_medium PASSED [ 67%]
+tests/test_wellness_rag.py::test_zero_duration_is_clamped_to_one_minute PASSED [ 68%]
+tests/test_wellness_rag.py::test_suggested_tasks_can_be_scheduled PASSED [ 70%]
+tests/test_wellness_rag.py::test_generation_without_an_api_key_raises_missing_key PASSED [ 71%]
+tests/test_wellness_rag.py::test_client_without_a_key_raises_before_importing_the_sdk PASSED [ 73%]
+tests/test_wellness_rag.py::test_retrieval_still_works_without_an_api_key PASSED [ 75%]
+tests/test_wellness_rag.py::test_clean_routine_passes_with_no_issues PASSED [ 76%]
+tests/test_wellness_rag.py::test_activity_naming_an_allergen_is_dropped PASSED [ 78%]
+tests/test_wellness_rag.py::test_allergen_named_only_in_an_avoidance_phrase_is_kept PASSED [ 79%]
+tests/test_wellness_rag.py::test_allergen_offered_as_a_reward_is_still_dropped PASSED [ 81%]
+tests/test_wellness_rag.py::test_citation_past_the_retrieved_passages_is_dropped PASSED [ 82%]
+tests/test_wellness_rag.py::test_uncited_activity_is_warned_but_kept PASSED [ 84%]
+tests/test_wellness_rag.py::test_over_budget_routine_drops_lowest_priority_first PASSED [ 85%]
+tests/test_wellness_rag.py::test_budget_trim_keeps_original_ordering PASSED [ 87%]
+tests/test_wellness_rag.py::test_implausible_durations_are_clamped PASSED [ 89%]
+tests/test_wellness_rag.py::test_duplicate_of_an_existing_task_is_flagged_not_dropped PASSED [ 90%]
+tests/test_wellness_rag.py::test_empty_result_reports_no_activities PASSED [ 92%]
+tests/test_wellness_rag.py::test_repair_false_reports_without_mutating PASSED [ 93%]
+tests/test_wellness_rag.py::test_guardrail_findings_are_recorded_on_the_routine PASSED [ 95%]
+tests/test_wellness_rag.py::test_pet_with_no_allergies_is_unaffected PASSED [ 96%]
+tests/test_wellness_rag.py::test_quota_error_is_reported_in_plain_language PASSED [ 98%]
+tests/test_wellness_rag.py::test_suggest_raises_when_nothing_is_retrieved PASSED [100%]
+
+============================= 64 passed in 3.04s ==============================

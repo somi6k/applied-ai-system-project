@@ -1,0 +1,45 @@
+$ python main.py
+# captured 2026-08-09 21:47 · exit code 0
+# The original Module 2 scheduler: sorting, planning, recurrence, conflicts.
+------------------------------------------------------------------------------
+
+Tasks as added (out of order):
+----------------------------------------
+  deadline --:--  Enrichment play (20 min) [priority: low] - Biscuit
+  deadline 09:00  Morning walk (30 min) [priority: high] - Biscuit
+  deadline --:--  Grooming (25 min) [priority: medium] - Biscuit
+  deadline 08:30  Breakfast (10 min) [priority: high] - Biscuit
+  deadline --:--  Short walk (20 min) [priority: medium] - Max
+  deadline 09:00  Feeding (10 min) [priority: high] - Max
+  deadline 08:15  Medication (5 min) [priority: high] - Max
+
+Sorted by time (earliest deadline first):
+----------------------------------------
+  deadline 08:15  Medication (5 min) [priority: high] - Max
+  deadline 08:30  Breakfast (10 min) [priority: high] - Biscuit
+  deadline 09:00  Morning walk (30 min) [priority: high] - Biscuit
+  deadline 09:00  Feeding (10 min) [priority: high] - Max
+  deadline --:--  Enrichment play (20 min) [priority: low] - Biscuit
+  deadline --:--  Grooming (25 min) [priority: medium] - Biscuit
+  deadline --:--  Short walk (20 min) [priority: medium] - Max
+
+Today's Schedule for Sam
+(available time: 120 min)
+----------------------------------------
+  08:00 - Medication (5 min) [priority: high] - Max
+  08:05 - Breakfast (10 min) [priority: high] - Biscuit
+  08:15 - Feeding (10 min) [priority: high] - Max
+  08:25 - Morning walk (30 min) [priority: high] - Biscuit
+  08:55 - Short walk (20 min) [priority: medium] - Max
+  09:15 - Grooming (25 min) [priority: medium] - Biscuit
+  09:40 - Enrichment play (20 min) [priority: low] - Biscuit
+
+Completing recurring tasks (today = 2026-07-15):
+----------------------------------------
+  Grooming (weekly) done -> next occurrence due 2026-07-22
+  Medication (daily) done -> next occurrence due 2026-07-16
+
+Checking for schedule conflicts:
+----------------------------------------
+WARNING: schedule conflict - 'Vet appointment' (Biscuit) and 'Bath' (Max) overlap at 09:30.
+  Program still running - 1 conflict(s) reported, not crashed.

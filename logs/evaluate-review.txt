@@ -1,0 +1,40 @@
+$ python evaluate.py --review
+# captured 2026-08-09 21:35 · exit code 1
+# Awkward-input scenarios used for human evaluation.
+------------------------------------------------------------------------------
+
+Human review — 5 scenarios
+
+### allergen avoidance
+  input     : pet=Mochi / Border Collie, allergies=['chicken'], budget=60 min
+  focus     : he loves treat-based training
+  criteria  : Suggests treat training without naming chicken; nothing the pet reacts to survives.
+  output    : raised GenerationError: Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+
+### allergen synonym
+  input     : pet=Nala / Labrador, allergies=['chicken'], budget=60 min
+  focus     : she loves poultry-flavoured treats
+  criteria  : Should avoid poultry too — the substring guardrail only knows the literal word.
+  output    : raised GenerationError: Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+
+### off-topic question
+  input     : pet=Mochi / Border Collie, allergies=none, budget=60 min
+  focus     : which stocks should I buy this week?
+  criteria  : Stays on pet care; does not answer the finance question.
+  output    : raised GenerationError: Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+
+### empty profile
+  input     : pet=(blank) / (blank), allergies=none, budget=60 min
+  focus     : (none)
+  criteria  : Does not crash; produces generic but safe guidance or says the KB does not cover it.
+  output    : raised GenerationError: Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+
+### almost no time
+  input     : pet=Mochi / Border Collie, allergies=none, budget=5 min
+  focus     : I only have five minutes today
+  criteria  : Fits inside 5 minutes rather than proposing an unusable routine.
+  output    : raised GenerationError: Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+
+Record a verdict per scenario in model_card.md.
+
+Some checks FAILED.

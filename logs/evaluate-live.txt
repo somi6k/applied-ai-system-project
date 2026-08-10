@@ -1,0 +1,15 @@
+$ python evaluate.py -v
+# captured 2026-08-09 21:35 · exit code 1
+# Three pet profiles end to end against Gemini, with invariants asserted.
+------------------------------------------------------------------------------
+
+Live end-to-end — 3 profiles against Gemini
+
+  [FAIL] Mochi (Border Collie)
+         ! Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+  [FAIL] Willow (senior indoor cat)
+         ! Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+  [FAIL] Biscuit (4-month-old Golden Retriever puppy)
+         ! Gemini quota exhausted — the free tier caps requests per day for this model. Retrieval still works; try generating again later.
+
+Some checks FAILED.
