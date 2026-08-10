@@ -1,0 +1,49 @@
+%% PawPal+ system architecture — data flow from user input to scheduled plan.
+%% Rendered in README.md; matches the implementation in app.py,
+%% wellness_rag.py, and pawpal_system.py.
+flowchart TB
+    subgraph input["Input"]
+        UI["Streamlit UI (app.py)<br/>owner, pets, tasks, focus question"]
+        KNOW[("knowledge/*.md<br/>6 docs, 30 sections")]
+    end
+
+    subgraph rag["Retrieval-Augmented Generation (wellness_rag.py)"]
+        direction TB
+        SPLIT["load_passages / split_document<br/>chunk at ## headings"]
+        EMBED["GeminiEmbedder.embed<br/>gemini-embedding-001, 768-dim"]
+        CACHE[(".wellness_cache.json<br/>vectors keyed by content hash")]
+        PROFILE["build_profile<br/>breed + allergies + meds +<br/>existing tasks + time budget"]
+        RETRIEVE["KnowledgeBase.retrieve<br/>cosine similarity, top-k = 4"]
+        KEYWORD["keyword_similarity<br/>fallback when embeddings fail"]
+        PROMPT["format_context<br/>numbered passages + profile"]
+        LLM{{"gemini-3.6-flash<br/>JSON response schema"}}
+        PARSE["parse_routine<br/>tolerant JSON to activities"]
+        GUARD["validate_routine (guardrail)<br/>citations, allergens,<br/>durations, time budget"]
+    end
+
+    subgraph domain["Scheduling domain (pawpal_system.py)"]
+        TASKS["Routine.to_tasks makes Task<br/>Pet.add_task"]
+        SORT["Scheduler.generate_plan<br/>priority, then deadline, then duration"]
+        CONFLICT["Scheduler.detect_conflicts<br/>sort-then-sweep overlap check"]
+    end
+
+    subgraph output["Output"]
+        PLAN["Time-boxed daily plan<br/>+ skipped tasks + conflict warnings"]
+        AUDIT["Cited passages + similarity scores<br/>+ guardrail findings"]
+    end
+
+    KNOW --> SPLIT --> EMBED
+    EMBED --> CACHE
+    CACHE --> EMBED
+    EMBED --> RETRIEVE
+    UI --> PROFILE --> RETRIEVE
+    RETRIEVE -.->|"no API key or embed error"| KEYWORD
+    KEYWORD --> PROMPT
+    RETRIEVE --> PROMPT --> LLM --> PARSE --> GUARD
+    GUARD --> TASKS
+    UI --> TASKS
+    TASKS --> SORT --> CONFLICT --> PLAN
+    GUARD --> AUDIT
+    RETRIEVE --> AUDIT
+    PLAN --> UI
+    AUDIT --> UI
